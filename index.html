@@ -233,7 +233,7 @@ function parseLive(dv) {
     state: dv.getUint8(1), flags: dv.getUint8(2), gpsFix: dv.getUint8(3), gpsSv: dv.getUint8(4), gpsSeen: !!dv.getUint8(5),
     stickUs: dv.getUint16(6, le), escUs: dv.getUint16(8, le), auxUs: dv.getUint16(10, le),
     rpm: dv.getUint32(12, le), edges: dv.getUint32(16, le), gpsMmS: dv.getInt32(20, le), gpsSaccMmS: dv.getUint32(24, le),
-    ax: dv.getInt16(28, le) / 2048, ay: dv.getInt16(30, le) / 2048, az: dv.getInt16(32, le) / 2048,
+    ax: dv.getInt16(28, le) / 1000, ay: dv.getInt16(30, le) / 1000, az: dv.getInt16(32, le) / 1000,  // milli-g
     passMs: dv.getUint32(36, le), lastPassId: dv.getUint32(40, le),
   };
 }
