@@ -1,0 +1,24 @@
+[
+ {
+  "id": 1,
+  "size": 270432,
+  "unix": 1792003600,
+  "dur_ms": 15561,
+  "max_rpm": 53020,
+  "max_gps_mph": 132.2,
+  "tire": 0,
+  "tire_mm": 104.0,
+  "cells": 6
+ },
+ {
+  "id": 2,
+  "size": 214272,
+  "unix": 1792007200,
+  "dur_ms": 12119,
+  "max_rpm": 75999,
+  "max_gps_mph": 80.7,
+  "tire": 1,
+  "tire_mm": 97.0,
+  "cells": 8
+ }
+]

@@ -1,0 +1,921 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Launch TC</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --ink: #14171c; --muted: #5d6573; --line: #dde1e7; --grid: #eceff3;
+  --accent: #2563eb; --danger: #c62828; --ok: #1b8a3a; --warn: #b7791f;
+  --s-wheel: #e8590c; --s-fused: #2563eb; --s-gps: #1b8a3a; --s-stick: #6b7280; --s-esc: #7c3aed;
+  --s-slip: #c62828; --s-fwd: #2563eb; --s-lat: #0d9488; --s-yaw: #b7791f;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1216; --panel: #171b21; --ink: #e8ebf0; --muted: #9aa3b2; --line: #2a313b; --grid: #20262e;
+    --accent: #60a5fa; --danger: #f87171; --ok: #4ade80; --warn: #fbbf24;
+    --s-wheel: #fb923c; --s-fused: #60a5fa; --s-gps: #4ade80; --s-stick: #9ca3af; --s-esc: #c084fc;
+    --s-slip: #f87171; --s-fwd: #60a5fa; --s-lat: #2dd4bf; --s-yaw: #fbbf24;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--ink);
+  font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 10px; padding: 10px 16px; flex-wrap: wrap; }
+header h1 { font-size: 17px; margin: 0; letter-spacing: .2px; }
+.pill { font-size: 12px; padding: 3px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.pill.on { color: var(--ok); border-color: var(--ok); }
+nav { display: flex; gap: 4px; margin-left: auto; }
+nav button, .btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 8px;
+  padding: 7px 12px; font: inherit; cursor: pointer; text-decoration: none; display: inline-block; }
+nav button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.danger { color: var(--danger); }
+.btn.big { padding: 12px 20px; font-size: 16px; }
+.btn:disabled { opacity: .45; cursor: default; }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+section[hidden], nav[hidden], [hidden] { display: none !important; }
+h2 { font-size: 16px; margin: 4px 0 12px; }
+.muted { color: var(--muted); }
+.hero { max-width: 520px; margin: 40px auto; text-align: center; }
+.hero h2 { font-size: 20px; }
+.hero .row { justify-content: center; }
+.tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.tile { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.tile .k { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .4px; }
+.tile .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tile .s { font-size: 12px; color: var(--muted); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 12px 0; }
+.list { display: grid; gap: 8px; }
+.pass { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pass .meta { flex: 1 1 220px; }
+.pass .meta b { font-variant-numeric: tabular-nums; }
+.stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin: 12px 0; }
+.chart { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; margin: 10px 0; padding: 6px 6px 2px; }
+.chart .title { display: flex; gap: 10px; font-size: 13px; padding: 0 4px 4px; flex-wrap: wrap; }
+.chart .title b { margin-right: auto; }
+.chart canvas { width: 100%; height: 170px; display: block; touch-action: pan-y; }
+.key { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); }
+.key i { width: 10px; height: 3px; border-radius: 2px; display: inline-block; }
+#readout { position: sticky; bottom: 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 12px; font-size: 13px; font-variant-numeric: tabular-nums; display: flex; gap: 12px; flex-wrap: wrap; }
+form.settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px 16px; }
+form.settings label { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
+input, select { font: inherit; color: var(--ink); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 8px; padding: 7px 9px; width: 100%; }
+table { border-collapse: collapse; font-variant-numeric: tabular-nums; }
+td, th { padding: 4px 12px 4px 0; text-align: left; }
+.note { font-size: 13px; color: var(--muted); margin: 8px 0; }
+.err { color: var(--danger); }
+progress { width: 100%; height: 8px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Launch TC</h1>
+  <span id="conn" class="pill">Not connected</span>
+  <button class="btn" id="btnDisconnect" hidden>Disconnect</button>
+  <nav id="tabs" hidden>
+    <button data-tab="live" class="on">Live</button>
+    <button data-tab="passes">Passes</button>
+    <button data-tab="settings">Settings</button>
+  </nav>
+</header>
+<main>
+  <section id="start">
+    <div class="hero">
+      <h2>Connect to your Launch TC box</h2>
+      <p class="muted">Power up the car, tap Connect, and pick <b>LaunchTC-xxxx</b> from the list.</p>
+      <div class="row">
+        <button class="btn primary big" id="btnConnect">Connect</button>
+        <button class="btn big" id="btnDemo">Try demo data</button>
+      </div>
+      <p class="note" id="startNote"></p>
+    </div>
+  </section>
+
+  <section id="live" hidden>
+    <div class="tiles" id="liveTiles"></div>
+    <div class="row">
+      <button class="btn" id="btnNeutral">Set neutral = current stick</button>
+    </div>
+    <p class="note">Live updates pause while a pass is recording, so Bluetooth stays quiet during the run.</p>
+  </section>
+
+  <section id="passes" hidden>
+    <div id="passList">
+      <div class="row"><h2 style="margin:0">Passes</h2>
+        <button class="btn" id="btnRefresh">Refresh</button>
+        <button class="btn danger" id="btnDeleteAll">Delete all</button></div>
+      <div class="list" id="passItems"></div>
+    </div>
+    <div id="passView" hidden>
+      <div class="row">
+        <button class="btn" id="btnBack">&larr; All passes</button>
+        <h2 id="pvTitle" style="margin:0"></h2>
+      </div>
+      <progress id="pvProgress" max="1" value="0" hidden></progress>
+      <div class="stats" id="pvStats"></div>
+      <div class="row" id="pvControls">
+        <button class="btn" data-zoom="full">Full pass</button>
+        <button class="btn" data-zoom="launch">Launch (0&ndash;3 s)</button>
+        <label class="muted">GPS lag ms <input id="optLag" type="number" step="10" value="80" style="width:80px"></label>
+        <label class="muted">Tire mm <input id="optTire" type="number" step="0.1" style="width:90px"></label>
+        <button class="btn" id="btnFit">Fit tire size</button>
+        <button class="btn" id="btnCsv">CSV</button>
+      </div>
+      <p class="note" id="fitOut"></p>
+      <div id="charts"></div>
+      <div id="readout"><span class="muted">Drag across a chart to zoom, double-tap to reset.</span></div>
+    </div>
+  </section>
+
+  <section id="settings" hidden>
+    <h2>Car</h2>
+    <form class="settings" id="setForm">
+      <label>Pinion<input name="pinion" type="number"></label>
+      <label>Spur<input name="spur" type="number"></label>
+      <label>Diff ratio<input name="diff" type="number" step="0.001"></label>
+      <label>Motor kV<input name="kv" type="number"></label>
+      <label>Motor poles<input name="poles" type="number"></label>
+      <label>Foam diameter mm<input name="foam_mm" type="number" step="0.1"></label>
+      <label>Rubber diameter mm<input name="rubber_mm" type="number" step="0.1"></label>
+      <label>Tires on the car<select name="tire"><option value="0">Foam</option><option value="1">Rubber</option></select></label>
+      <label>Pack (logged with each pass)<select name="cells"><option>6</option><option>7</option><option>8</option></select></label>
+      <label>Throttle neutral &micro;s<input name="neutral_us" type="number"></label>
+      <label>Throttle full &micro;s<input name="full_us" type="number"></label>
+      <label>Start recording at throttle %<input name="trigger_pct" type="number"></label>
+      <label>IMU axis pointing forward<select name="fwd_axis"></select></label>
+      <label>IMU axis pointing left<select name="left_axis"></select></label>
+      <label>GPS rate (restart to apply)<select name="gps_hz"><option>5</option><option>10</option><option>18</option><option>25</option></select></label>
+    </form>
+    <div class="row">
+      <button class="btn primary" id="btnSave">Save</button>
+      <button class="btn" id="btnRestart">Restart box</button>
+      <span id="saveMsg" class="muted"></span>
+    </div>
+    <h2>Theoretical top speed (no load, full charge, no tire growth)</h2>
+    <p class="note" id="ratioOut"></p>
+    <table id="speedTable"></table>
+    <p class="note" id="aboutOut"></p>
+  </section>
+</main>
+
+<script>
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const MPH = 2.236936, G0 = 9.80665;
+const fmt = (v, d = 1) => Number.isFinite(v) ? v.toFixed(d) : '—';
+
+// ======================================================================= link layer
+// Bluetooth protocol mirrors firmware/src/ble.h; see docs/Interfaces.md.
+const BLE_UUID = n => `4c54430${n}-8f2a-4e8b-a3d4-1b5c9e7f2a60`;
+const SVC_UUID = BLE_UUID(1);
+const DEFAULT_SETTINGS = { pinion: 24, spur: 42, diff: 2.8, foam_mm: 104, rubber_mm: 97, tire: 0, cells: 6, poles: 4,
+  kv: 2400, neutral_us: 1500, full_us: 2000, trigger_pct: 10, fwd_axis: 1, left_axis: 2, gps_hz: 10 };
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let i = 0; i < 256; i++) { let c = i; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[i] = c >>> 0; }
+  return t;
+})();
+function crc32(bytes, crc = 0) {
+  crc = ~crc >>> 0;
+  for (let i = 0; i < bytes.length; i++) crc = CRC_TABLE[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+  return ~crc >>> 0;
+}
+
+// Reassembles DATA notifications into one response.
+class FrameAssembler {
+  constructor() { this.reset(); }
+  reset() { this.text = ''; this.bytes = null; this.received = 0; }
+  ensure(n) {
+    if (this.bytes && this.bytes.length >= n) return;
+    const grown = new Uint8Array(Math.max(n, (this.bytes ? this.bytes.length : 0) * 2, 65536));
+    if (this.bytes) grown.set(this.bytes);
+    this.bytes = grown;
+  }
+  // Returns { done, json | file | error, progress }
+  feed(u8) {
+    const kind = u8[0], dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength);
+    if (kind === 1 || kind === 2) {
+      this.text += new TextDecoder().decode(u8.subarray(1));
+      if (kind === 1) return { done: false };
+      const text = this.text;
+      this.text = '';
+      return { done: true, json: JSON.parse(text) };
+    }
+    if (kind === 3) {
+      const off = dv.getUint32(1, true), data = u8.subarray(5);
+      this.ensure(off + data.length);
+      this.bytes.set(data, off);
+      this.received += data.length;
+      return { done: false, progress: this.received };
+    }
+    if (kind === 4) {
+      const size = dv.getUint32(1, true), crc = dv.getUint32(5, true);
+      const file = this.bytes ? this.bytes.slice(0, size) : new Uint8Array(0);
+      if (this.received !== size || file.length !== size) return { done: true, error: `Transfer incomplete (${this.received} of ${size} bytes)` };
+      if (crc32(file) !== crc) return { done: true, error: 'Transfer corrupted (CRC mismatch), try again' };
+      return { done: true, file: file.buffer };
+    }
+    if (kind === 5) return { done: true, error: new TextDecoder().decode(u8.subarray(1)) };
+    return { done: false };
+  }
+}
+
+function parseLive(dv) {
+  const le = true;
+  return {
+    state: dv.getUint8(1), flags: dv.getUint8(2), gpsFix: dv.getUint8(3), gpsSv: dv.getUint8(4), gpsSeen: !!dv.getUint8(5),
+    stickUs: dv.getUint16(6, le), escUs: dv.getUint16(8, le), auxUs: dv.getUint16(10, le),
+    rpm: dv.getUint32(12, le), edges: dv.getUint32(16, le), gpsMmS: dv.getInt32(20, le), gpsSaccMmS: dv.getUint32(24, le),
+    ax: dv.getInt16(28, le) / 2048, ay: dv.getInt16(30, le) / 2048, az: dv.getInt16(32, le) / 2048,
+    passMs: dv.getUint32(36, le), lastPassId: dv.getUint32(40, le),
+  };
+}
+
+class BleLink {
+  constructor() { this.asm = new FrameAssembler(); this.queue = Promise.resolve(); this.waiter = null; this.onLive = null; this.onDisconnect = null; }
+  async connect() {
+    this.device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SVC_UUID] }] });
+    this.device.addEventListener('gattserverdisconnected', () => {
+      if (this.waiter) this.finish(null, new Error('Disconnected'));
+      if (this.onDisconnect) this.onDisconnect();
+    });
+    const server = await this.device.gatt.connect();
+    const svc = await server.getPrimaryService(SVC_UUID);
+    this.liveChr = await svc.getCharacteristic(BLE_UUID(2));
+    this.cmdChr = await svc.getCharacteristic(BLE_UUID(3));
+    this.dataChr = await svc.getCharacteristic(BLE_UUID(4));
+    this.dataChr.addEventListener('characteristicvaluechanged', e => this.onFrame(e.target.value));
+    await this.dataChr.startNotifications();
+    this.liveChr.addEventListener('characteristicvaluechanged', e => this.onLive && this.onLive(parseLive(e.target.value)));
+    await this.liveChr.startNotifications();
+    this.name = this.device.name || 'Launch TC';
+  }
+  disconnect() { if (this.device && this.device.gatt.connected) this.device.gatt.disconnect(); }
+  onFrame(dv) {
+    if (!this.waiter) return;
+    this.waiter.last = Date.now();
+    let r;
+    try { r = this.asm.feed(new Uint8Array(dv.buffer, dv.byteOffset, dv.byteLength).slice()); }
+    catch (e) { return this.finish(null, e); }
+    if (r.progress !== undefined && this.waiter.onProgress) this.waiter.onProgress(r.progress);
+    if (r.done) r.error ? this.finish(null, new Error(r.error)) : this.finish(r.json !== undefined ? r.json : r.file);
+  }
+  finish(value, err) {
+    const w = this.waiter;
+    if (!w) return;
+    this.waiter = null;
+    clearInterval(w.timer);
+    this.asm.reset();
+    err ? w.reject(err) : w.resolve(value);
+  }
+  // One request at a time; each resolves with JSON or an ArrayBuffer.
+  request(cmd, onProgress) {
+    const run = () => new Promise((resolve, reject) => {
+      this.asm.reset();
+      const w = this.waiter = { resolve, reject, onProgress, last: Date.now() };
+      w.timer = setInterval(() => { if (Date.now() - w.last > 10000) this.finish(null, new Error('The box stopped answering')); }, 1000);
+      const bytes = new TextEncoder().encode(cmd), c = this.cmdChr;
+      (c.writeValueWithResponse ? c.writeValueWithResponse(bytes) : c.writeValue(bytes)).catch(e => this.finish(null, e));
+    });
+    const p = this.queue.then(run, run);
+    this.queue = p.catch(() => {});
+    return p;
+  }
+  info() { return this.request('info'); }
+  settings() { return this.request('settings'); }
+  async saveSettings(values) {
+    // Keep each write well under one Bluetooth packet.
+    let batch = [], last;
+    for (const [k, v] of Object.entries(values)) {
+      const pair = `${k}=${v}`;
+      if (batch.length && (batch.join('&').length + pair.length) > 140) { last = await this.request('set ' + batch.join('&')); batch = []; }
+      batch.push(pair);
+    }
+    if (batch.length) last = await this.request('set ' + batch.join('&'));
+    return last;
+  }
+  neutral() { return this.request('neutral'); }
+  list() { return this.request('list'); }
+  getPass(id, onProgress) { return this.request(`get ${id}`, onProgress); }
+  del(id) { return this.request(`del ${id}`); }
+  restart() { return this.request('restart'); }
+}
+
+// Same interface as BleLink, backed by the simulated passes in demo/.
+class DemoLink {
+  constructor() { this.name = 'Demo car'; this.s = { ...DEFAULT_SETTINGS }; this.passes = null; this.deleted = new Set(); this.onLive = null; this.onDisconnect = null; }
+  async connect() {
+    const t0 = performance.now();
+    this.timer = setInterval(() => {
+      const t = (performance.now() - t0) / 1000;
+      if (this.onLive) this.onLive({ state: 0, flags: 1 | 2 | 8, gpsFix: 3, gpsSv: 14, gpsSeen: true, stickUs: 1500, escUs: 1500, auxUs: 0,
+        rpm: 0, edges: 1234567, gpsMmS: 30 + Math.round(20 * Math.sin(t)), gpsSaccMmS: 120, ax: 0.01 * Math.sin(t * 3), ay: 0.004, az: 1.0, passMs: 0, lastPassId: 2 });
+    }, 200);
+  }
+  disconnect() { clearInterval(this.timer); if (this.onDisconnect) this.onDisconnect(); }
+  async info() { return { fw: 'demo', name: this.name, fs_used: 452320, fs_total: 10354688 }; }
+  async settings() { return { ...this.s }; }
+  async saveSettings(values) { for (const [k, v] of Object.entries(values)) this.s[k] = Number.isFinite(+v) ? +v : v; return { ...this.s }; }
+  async neutral() { throw new Error('Demo mode has no throttle signal'); }
+  async list() {
+    if (!this.passes) this.passes = await fetch('demo/passes.json').then(r => { if (!r.ok) throw new Error('demo data missing'); return r.json(); });
+    return this.passes.filter(p => !this.deleted.has(p.id));
+  }
+  async getPass(id, onProgress) {
+    const r = await fetch(`demo/${String(id).padStart(5, '0')}.bin`);
+    if (!r.ok) throw new Error('no such pass');
+    const buf = await r.arrayBuffer();
+    if (onProgress) onProgress(buf.byteLength);
+    return buf;
+  }
+  async del(id) { if (id === 'all') (await this.list()).forEach(p => this.deleted.add(p.id)); else this.deleted.add(+id); return { ok: true }; }
+  async restart() { return { ok: true }; }
+}
+
+// ======================================================================= app state
+let link = null, settingsCache = null, infoCache = null;
+const passCache = new Map();  // `${link name}/${id}` -> ArrayBuffer
+
+function setConn(text, on) { const el = $('#conn'); el.textContent = text; el.classList.toggle('on', !!on); }
+
+async function startLink(l) {
+  setConn('Connecting…');
+  $('#startNote').textContent = '';
+  try {
+    await l.connect();
+    link = l;
+    l.onLive = renderLive;
+    l.onDisconnect = () => { if (link === l) { link = null; showStart('Disconnected from the box.'); } };
+    infoCache = await l.info();
+    settingsCache = await l.settings();
+    setConn(l.name, true);
+    $('#tabs').hidden = false;
+    $('#btnDisconnect').hidden = false;
+    showTab('live');
+  } catch (e) {
+    link = null;
+    setConn('Not connected');
+    if (e.name !== 'NotFoundError') $('#startNote').innerHTML = `<span class="err">${e.message}</span>`;  // NotFoundError = chooser cancelled
+  }
+}
+
+function showStart(msg) {
+  setConn('Not connected');
+  $('#tabs').hidden = true;
+  $('#btnDisconnect').hidden = true;
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== 'start');
+  $('#startNote').textContent = msg || '';
+  tab = 'start';
+}
+
+$('#btnConnect').onclick = () => startLink(new BleLink());
+$('#btnDemo').onclick = () => startLink(new DemoLink());
+$('#btnDisconnect').onclick = () => { const l = link; link = null; if (l) l.disconnect(); showStart(); };
+if (!navigator.bluetooth) {
+  $('#btnConnect').disabled = true;
+  $('#startNote').innerHTML = 'This browser can’t use Bluetooth. On iPhone, open this page in the <b>Bluefy</b> app. On Android, use Chrome.';
+}
+
+// ======================================================================= tabs
+let tab = 'start';
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => showTab(b.dataset.tab));
+function showTab(name) {
+  tab = name;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.tab === name));
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== name);
+  if (name === 'passes') loadPasses();
+  if (name === 'settings') loadSettings();
+}
+
+// ======================================================================= live
+const STATE = ['Idle', 'Recording', 'Saving'];
+function tile(k, v, s, cls) {
+  return `<div class="tile"><div class="k">${k}</div><div class="v ${cls || ''}">${v}</div><div class="s">${s || ''}</div></div>`;
+}
+const thrPct = us => { const s = settingsCache || DEFAULT_SETTINGS; return Math.round((us - s.neutral_us) * 100 / ((s.full_us - s.neutral_us) || 500)); };
+function wheelMph(rpm) {
+  const s = settingsCache || DEFAULT_SETTINGS, ratio = s.spur / s.pinion * s.diff;
+  return rpm / ratio * Math.PI * (s.tire ? s.rubber_mm : s.foam_mm) / 1000 / 60 * MPH;
+}
+function renderLive(d) {
+  if (tab !== 'live') return;
+  const stickOk = d.flags & 1, escOk = d.flags & 2, auxOk = d.flags & 4, imuOk = d.flags & 8;
+  const gps = d.gpsSeen ? `${d.gpsFix === 3 ? '3D' : d.gpsFix === 2 ? '2D' : 'no'} fix · ${d.gpsSv} sats` : 'no data';
+  const fs = infoCache ? `${(infoCache.fs_used / 1e6).toFixed(1)} / ${(infoCache.fs_total / 1e6).toFixed(1)} MB` : '';
+  $('#liveTiles').innerHTML = [
+    tile('State', STATE[d.state] || '?', d.state === 1 ? `${(d.passMs / 1000).toFixed(1)} s` : (d.lastPassId ? `last pass #${d.lastPassId}` : '')),
+    tile('Stick', stickOk ? `${thrPct(d.stickUs)}%` : '—', stickOk ? `${d.stickUs} µs` : 'no signal'),
+    tile('ESC line', escOk ? `${thrPct(d.escUs)}%` : '—', escOk ? `${d.escUs} µs` : 'no signal'),
+    tile('Aux', auxOk ? `${d.auxUs}` : '—', auxOk ? 'µs' : 'not connected'),
+    tile('Motor', d.rpm.toLocaleString(), `rpm · ${d.edges.toLocaleString()} edges`),
+    tile('Wheel speed', fmt(wheelMph(d.rpm)), 'mph from motor'),
+    tile('GPS speed', d.gpsSeen ? fmt(d.gpsMmS / 1000 * MPH) : '—', gps, d.gpsFix === 3 ? '' : 'muted'),
+    tile('IMU', imuOk ? `${fmt(d.az, 2)} g` : 'missing', imuOk ? `x ${fmt(d.ax, 2)} y ${fmt(d.ay, 2)} z ${fmt(d.az, 2)}` : 'check wiring', imuOk ? '' : 'err'),
+    tile('Storage', infoCache ? `${Math.round(100 * infoCache.fs_used / Math.max(1, infoCache.fs_total))}%` : '—', fs),
+  ].join('');
+}
+$('#btnNeutral').onclick = async () => {
+  try { settingsCache = await link.neutral(); alert(`Neutral set to ${settingsCache.neutral_us} µs`); }
+  catch (e) { alert(e.message); }
+};
+
+// ======================================================================= pass list
+async function loadPasses() {
+  $('#passView').hidden = true;
+  $('#passList').hidden = false;
+  const el = $('#passItems');
+  el.innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const list = await link.list();
+    infoCache = await link.info();
+    if (!list.length) { el.innerHTML = '<p class="muted">No passes yet. Pull the trigger past the start threshold and one is recorded automatically.</p>'; return; }
+    el.innerHTML = list.slice().reverse().map(p => `
+      <div class="pass">
+        <div class="meta"><b>#${p.id}</b> · ${p.unix ? new Date(p.unix * 1000).toLocaleString() : 'no GPS time'}<br>
+          <span class="muted">${(p.dur_ms / 1000).toFixed(1)} s · top GPS <b>${fmt(p.max_gps_mph)}</b> mph ·
+          ${p.max_rpm.toLocaleString()} rpm · ${p.tire ? 'rubber' : 'foam'} ${p.tire_mm} mm · ${p.cells}S · ${(p.size / 1024).toFixed(0)} KB</span></div>
+        <button class="btn primary" data-view="${p.id}" data-size="${p.size}">View</button>
+        <button class="btn danger" data-del="${p.id}">Delete</button>
+      </div>`).join('');
+    el.querySelectorAll('[data-view]').forEach(b => b.onclick = () => openPass(+b.dataset.view, +b.dataset.size));
+    el.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+      if (!confirm(`Delete pass #${b.dataset.del}?`)) return;
+      await link.del(b.dataset.del);
+      loadPasses();
+    });
+  } catch (e) {
+    el.innerHTML = `<p class="err">Could not load passes (${e.message}).</p>`;
+  }
+}
+$('#btnRefresh').onclick = loadPasses;
+$('#btnDeleteAll').onclick = async () => {
+  if (!confirm('Delete every recorded pass on the box?')) return;
+  await link.del('all');
+  loadPasses();
+};
+$('#btnBack').onclick = loadPasses;
+
+// ======================================================================= log parsing (mirrors firmware/src/log_format.h)
+function parsePass(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf);
+  if (buf.byteLength < 128 || String.fromCharCode(u8[0], u8[1], u8[2], u8[3]) !== 'LTC1') throw new Error('Not a Launch TC log');
+  const le = true;
+  const H = {
+    version: dv.getUint16(4, le), headerSize: dv.getUint16(6, le), recordSize: dv.getUint16(8, le),
+    logHz: dv.getUint16(10, le), nRecords: dv.getUint32(12, le), triggerRecord: dv.getUint32(16, le),
+    durationMs: dv.getUint32(20, le), maxRpm: dv.getUint32(24, le), maxGpsMmS: dv.getInt32(28, le),
+    unix: dv.getUint32(32, le), pinion: dv.getUint16(36, le), spur: dv.getUint16(38, le),
+    diff: dv.getUint16(40, le) / 1000, tireMm: dv.getUint16(42, le) / 10, tire: u8[44], cells: u8[45],
+    poles: u8[46], edgesPerRev: u8[47], neutralUs: dv.getUint16(48, le), fullUs: dv.getUint16(50, le),
+    accelLsb: dv.getUint16(52, le), gyroLsb: dv.getUint16(54, le) / 10, fwdAxis: dv.getInt8(56),
+    leftAxis: dv.getInt8(57), gpsHz: u8[58], kv: dv.getUint16(60, le),
+  };
+  const n = Math.min(H.nRecords, Math.floor((buf.byteLength - H.headerSize) / H.recordSize));
+  let ns = 0, ng = 0;
+  for (let i = 0; i < n; i++) {
+    const t = u8[H.headerSize + i * H.recordSize];
+    if (t === 1) ns++; else if (t === 2) ng++;
+  }
+  const S = {
+    t: new Float64Array(ns), stick: new Float32Array(ns), esc: new Float32Array(ns), aux: new Float32Array(ns),
+    flags: new Uint8Array(ns), edges: new Float64Array(ns), rpm: new Float32Array(ns),
+    acc: [0, 1, 2].map(() => new Float32Array(ns)), gyr: [0, 1, 2].map(() => new Float32Array(ns)),
+  };
+  const Gp = { t: new Float64Array(ng), mps: new Float32Array(ng), sacc: new Float32Array(ng), fix: new Uint8Array(ng), sv: new Uint8Array(ng) };
+  let wrap = 0, prev = null, trig = null, is = 0, ig = 0;
+  const unwrap = raw => {
+    if (prev !== null && raw < prev && prev - raw > 2 ** 31) wrap += 2 ** 32;
+    prev = raw;
+    return (raw + wrap) / 1e6;
+  };
+  for (let i = 0; i < n; i++) {
+    const o = H.headerSize + i * H.recordSize, type = u8[o];
+    if (type === 1) {
+      const t = unwrap(dv.getUint32(o + 8, le));
+      if (trig === null && i >= H.triggerRecord) trig = t;
+      S.t[is] = t; S.flags[is] = u8[o + 1];
+      S.stick[is] = dv.getUint16(o + 2, le); S.esc[is] = dv.getUint16(o + 4, le); S.aux[is] = dv.getUint16(o + 6, le);
+      S.edges[is] = dv.getUint32(o + 12, le); S.rpm[is] = dv.getUint32(o + 16, le);
+      for (let k = 0; k < 3; k++) {
+        S.acc[k][is] = dv.getInt16(o + 20 + 2 * k, le) / H.accelLsb;
+        S.gyr[k][is] = dv.getInt16(o + 26 + 2 * k, le) / H.gyroLsb;
+      }
+      is++;
+    } else if (type === 2) {
+      const t = unwrap(dv.getUint32(o + 4, le));
+      if (trig === null && i >= H.triggerRecord) trig = t;
+      Gp.t[ig] = t; Gp.fix[ig] = u8[o + 1]; Gp.sv[ig] = u8[o + 2];
+      Gp.mps[ig] = dv.getInt32(o + 12, le) / 1000; Gp.sacc[ig] = dv.getUint32(o + 16, le) / 1000;
+      ig++;
+    }
+  }
+  if (trig === null) trig = ns ? S.t[0] : 0;
+  for (let i = 0; i < ns; i++) S.t[i] -= trig;
+  for (let i = 0; i < ng; i++) Gp.t[i] -= trig;
+  return { H, S, G: Gp };
+}
+
+// ======================================================================= analysis
+function lowerBound(xs, x) {
+  let lo = 0, hi = xs.length;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (xs[m] < x) lo = m + 1; else hi = m; }
+  return lo;
+}
+function movingAvg(ys, w) {
+  const out = new Float32Array(ys.length);
+  let sum = 0, cnt = 0;
+  for (let i = 0; i < ys.length; i++) {
+    if (Number.isFinite(ys[i])) { sum += ys[i]; cnt++; }
+    if (i >= w && Number.isFinite(ys[i - w])) { sum -= ys[i - w]; cnt--; }
+    out[i] = cnt ? sum / cnt : NaN;
+  }
+  return out;
+}
+
+function analyze(P, opt) {
+  const { H, S, G: Gp } = P, n = S.t.length, ng = Gp.t.length;
+  const ratio = H.spur / H.pinion * H.diff;
+  const dia = opt.tireMm || H.tireMm;
+  const mpsPerRpm = Math.PI * dia / 1000 / 60 / ratio;
+
+  const wheel = new Float32Array(n), stick = new Float32Array(n), esc = new Float32Array(n);
+  const span = (H.fullUs - H.neutralUs) || 500;
+  for (let i = 0; i < n; i++) {
+    wheel[i] = S.rpm[i] * mpsPerRpm * MPH;
+    stick[i] = S.flags[i] & 1 ? (S.stick[i] - H.neutralUs) * 100 / span : NaN;
+    esc[i] = S.flags[i] & 2 ? (S.esc[i] - H.neutralUs) * 100 / span : NaN;
+  }
+
+  // IMU axes -> car frame (forward, left, up = forward x left)
+  const fa = Math.abs(H.fwdAxis) || 1, la = Math.abs(H.leftAxis) || 2, ua = 6 - fa - la;
+  const eps = ((la - fa + 3) % 3 === 1) ? 1 : -1;
+  const upSign = Math.sign(H.fwdAxis || 1) * Math.sign(H.leftAxis || 1) * eps;
+  const fwd = new Float32Array(n), lat = new Float32Array(n), yaw = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    fwd[i] = Math.sign(H.fwdAxis || 1) * S.acc[fa - 1][i];
+    lat[i] = Math.sign(H.leftAxis || 1) * S.acc[la - 1][i];
+    yaw[i] = upSign * S.gyr[ua - 1][i];
+  }
+  // Remove mounting tilt / bias using the stationary history before the trigger.
+  let bf = 0, bl = 0, bc = 0;
+  for (let i = 0; i < n && S.t[i] < -0.05; i++) if (S.rpm[i] < 50 && (S.flags[i] & 8)) { bf += fwd[i]; bl += lat[i]; bc++; }
+  if (bc < 20) { bf = bl = bc = 0; for (let i = 0; i < Math.min(n, 100); i++) { bf += fwd[i]; bl += lat[i]; bc++; } }
+  if (bc) { bf /= bc; bl /= bc; }
+  for (let i = 0; i < n; i++) { fwd[i] -= bf; lat[i] -= bl; }
+
+  // GPS, shifted back by its reporting lag
+  const lag = (opt.lagMs ?? 80) / 1000;
+  const gt = new Float64Array(ng), gps = new Float32Array(ng);
+  for (let j = 0; j < ng; j++) { gt[j] = Gp.t[j] - lag; gps[j] = Gp.fix[j] >= 2 ? Gp.mps[j] * MPH : NaN; }
+
+  // Ground speed: integrate forward accel, pull toward GPS each epoch, zero when the motor is stopped.
+  const K = 0.3, fused = new Float32Array(n);
+  let v = 0, j = 0;
+  for (let i = 0; i < n; i++) {
+    if (i > 0) { const dt = S.t[i] - S.t[i - 1]; if (dt > 0 && dt < 0.05) v += fwd[i] * G0 * dt; }
+    while (j < ng && gt[j] <= S.t[i]) { if (Gp.fix[j] >= 2) v += K * (Gp.mps[j] - v); j++; }
+    if (S.rpm[i] < 30) v = 0;
+    if (v < 0) v = 0;
+    fused[i] = v * MPH;
+  }
+
+  const slip = new Float32Array(n);
+  for (let i = 0; i < n; i++) slip[i] = fused[i] > 5 ? (wheel[i] - fused[i]) / fused[i] * 100 : NaN;
+
+  // Stats
+  const hz = H.logHz || 500;
+  const fwdS = movingAvg(fwd, Math.round(hz * 0.05)), slipS = movingAvg(slip, Math.round(hz * 0.05));
+  const overS = movingAvg(Array.from(wheel, (w, i) => w - fused[i]), Math.round(hz * 0.05));
+  const st = { topGps: NaN, topWheel: 0, topFused: 0, peakRpm: 0, peakG: 0, maxSlip: NaN, maxOver: 0, slipTime: 0, dist: 0, t30: NaN, t60: NaN, t100: NaN };
+  for (let k = 0; k < ng; k++) if (Gp.fix[k] >= 3 && !(gps[k] <= st.topGps)) st.topGps = gps[k];
+  for (let i = 0; i < n; i++) {
+    if (S.t[i] < 0) continue;
+    st.topWheel = Math.max(st.topWheel, wheel[i]);
+    st.topFused = Math.max(st.topFused, fused[i]);
+    st.peakRpm = Math.max(st.peakRpm, S.rpm[i]);
+    if (Number.isFinite(fwdS[i])) st.peakG = Math.max(st.peakG, fwdS[i]);
+    // Slip % balloons at walking pace, so report it from 15 mph up; overspeed covers the launch.
+    if (fused[i] > 15 && Number.isFinite(slipS[i]) && !(slipS[i] <= st.maxSlip)) st.maxSlip = slipS[i];
+    if (Number.isFinite(overS[i])) st.maxOver = Math.max(st.maxOver, overS[i]);
+    if (i > 0) {
+      const dt = S.t[i] - S.t[i - 1];
+      st.dist += fused[i] / MPH * dt;
+      if (slipS[i] > 20) st.slipTime += dt;
+    }
+    for (const [key, mph] of [['t30', 30], ['t60', 60], ['t100', 100]]) if (!Number.isFinite(st[key]) && fused[i] >= mph) st[key] = S.t[i];
+  }
+  return { n, ratio, dia, wheel, stick, esc, fwd, lat, yaw, fused, slip, gt, gps, st, mpsPerRpm };
+}
+
+// Effective rolling diameter from GPS during low-acceleration stretches (includes some slip).
+function fitTire(P, A) {
+  const { S, G: Gp } = P;
+  const fwdS = movingAvg(A.fwd, 50);
+  const all = [], fast = [];
+  for (let j = 0; j < A.gt.length; j++) {
+    if (Gp.fix[j] < 3 || !(A.gps[j] > 15)) continue;
+    const i = Math.min(S.t.length - 1, lowerBound(S.t, A.gt[j]));
+    if (!(Math.abs(fwdS[i]) < 0.3) || S.rpm[i] < 500) continue;
+    const r = Gp.mps[j] / (S.rpm[i] * A.mpsPerRpm);
+    all.push(r);
+    if (A.gps[j] > 60) fast.push(r);
+  }
+  const med = a => { const s = a.slice().sort((x, y) => x - y); return s[s.length >> 1]; };
+  return { n: all.length, dia: all.length ? A.dia * med(all) : NaN, nFast: fast.length, diaFast: fast.length ? A.dia * med(fast) : NaN };
+}
+
+// ======================================================================= charts
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+function niceTicks(lo, hi, count) {
+  const span = hi - lo, step0 = span / Math.max(1, count);
+  const mag = 10 ** Math.floor(Math.log10(step0)), r = step0 / mag;
+  const step = (r >= 5 ? 10 : r >= 2 ? 5 : r >= 1 ? 2 : 1) * mag;
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) out.push(+v.toFixed(10));
+  return out;
+}
+
+class ChartGroup {
+  constructor(host) { this.host = host; this.charts = []; this.view = { t0: 0, t1: 1, full: [0, 1], cursor: null, sel: null }; }
+  add(spec) { const c = new Chart(this, spec); this.charts.push(c); return c; }
+  setFull(t0, t1) { this.view.full = [t0, t1]; this.view.t0 = t0; this.view.t1 = t1; }
+  zoom(t0, t1) { const [a, b] = this.view.full; this.view.t0 = Math.max(a, t0); this.view.t1 = Math.min(b, t1); this.draw(); }
+  draw() { for (const c of this.charts) c.draw(); this.readout(); }
+  readout() {
+    const t = this.view.cursor, el = $('#readout');
+    if (t === null) return;
+    const parts = [`<b>t = ${t.toFixed(3)} s</b>`];
+    for (const c of this.charts) for (const s of c.spec.series) {
+      if (!s.x.length) continue;
+      const i = Math.min(s.x.length - 1, lowerBound(s.x, t));
+      const k = i > 0 && Math.abs(s.x[i - 1] - t) < Math.abs(s.x[i] - t) ? i - 1 : i;
+      if (s.dots && Math.abs(s.x[k] - t) > 0.15) continue;
+      parts.push(`<span class="key"><i style="background:${css(s.color)}"></i>${s.name} ${fmt(s.y[k], c.spec.digits ?? 1)}${c.spec.unit}</span>`);
+    }
+    el.innerHTML = parts.join('');
+  }
+}
+
+class Chart {
+  constructor(group, spec) {
+    this.group = group; this.spec = spec;
+    const box = document.createElement('div');
+    box.className = 'chart';
+    box.innerHTML = `<div class="title"><b>${spec.title}</b>${spec.series.map(s => `<span class="key"><i style="background:${css(s.color)}"></i>${s.name}</span>`).join('')}</div><canvas></canvas>`;
+    group.host.appendChild(box);
+    this.canvas = box.querySelector('canvas');
+    this.pad = { l: 46, r: 10, t: 8, b: 20 };
+    this.bind();
+  }
+  tAt(clientX) {
+    const r = this.canvas.getBoundingClientRect(), v = this.group.view;
+    const f = (clientX - r.left - this.pad.l) / Math.max(1, r.width - this.pad.l - this.pad.r);
+    return v.t0 + Math.min(1, Math.max(0, f)) * (v.t1 - v.t0);
+  }
+  bind() {
+    const g = this.group, cv = this.canvas;
+    let start = null, startX = 0;
+    cv.addEventListener('pointerdown', e => { start = this.tAt(e.clientX); startX = e.clientX; cv.setPointerCapture(e.pointerId); g.view.cursor = start; g.draw(); });
+    cv.addEventListener('pointermove', e => {
+      g.view.cursor = this.tAt(e.clientX);
+      if (start !== null && Math.abs(e.clientX - startX) > 8) g.view.sel = [start, g.view.cursor];
+      g.draw();
+    });
+    cv.addEventListener('pointerup', () => {
+      const s = g.view.sel;
+      start = null; g.view.sel = null;
+      if (s && Math.abs(s[1] - s[0]) > 0.005) g.zoom(Math.min(...s), Math.max(...s)); else g.draw();
+    });
+    cv.addEventListener('pointercancel', () => { start = null; g.view.sel = null; g.draw(); });
+    cv.addEventListener('dblclick', () => g.zoom(...g.view.full));
+  }
+  draw() {
+    const { t0, t1, cursor, sel } = this.group.view, spec = this.spec, cv = this.canvas;
+    const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+    if (!w || !h) return;
+    if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+    const ctx = cv.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    const p = this.pad, pw = w - p.l - p.r, ph = h - p.t - p.b;
+
+    let lo = Infinity, hi = -Infinity;
+    for (const s of spec.series) {
+      const i0 = lowerBound(s.x, t0), i1 = lowerBound(s.x, t1);
+      for (let i = i0; i < i1; i++) { const y = s.y[i]; if (Number.isFinite(y)) { if (y < lo) lo = y; if (y > hi) hi = y; } }
+    }
+    if (!Number.isFinite(lo)) { lo = 0; hi = 1; }
+    if (spec.include) { lo = Math.min(lo, spec.include[0]); hi = Math.max(hi, spec.include[1]); }
+    if (spec.clamp) { lo = Math.max(lo, spec.clamp[0]); hi = Math.min(hi, spec.clamp[1]); }
+    if (hi - lo < (spec.minSpan || 1e-6)) { const m = (hi + lo) / 2, half = (spec.minSpan || 1) / 2; lo = m - half; hi = m + half; }
+    const padY = (hi - lo) * 0.06; lo -= padY; hi += padY;
+    const X = t => p.l + (t - t0) / (t1 - t0) * pw, Y = y => p.t + (1 - (y - lo) / (hi - lo)) * ph;
+
+    ctx.font = '11px system-ui, sans-serif';
+    ctx.fillStyle = css('--muted'); ctx.strokeStyle = css('--grid'); ctx.lineWidth = 1;
+    ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+    for (const v of niceTicks(lo, hi, 4)) {
+      const y = Math.round(Y(v)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(p.l, y); ctx.lineTo(w - p.r, y); ctx.stroke();
+      ctx.fillText(`${+v.toPrecision(4)}`, p.l - 6, y);
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    for (const v of niceTicks(t0, t1, Math.max(3, Math.floor(pw / 80)))) {
+      const x = Math.round(X(v)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(x, p.t); ctx.lineTo(x, p.t + ph); ctx.stroke();
+      ctx.fillText(`${+v.toPrecision(4)}s`, x, p.t + ph + 4);
+    }
+    if (lo < 0 && hi > 0) { ctx.strokeStyle = css('--line'); const y = Math.round(Y(0)) + 0.5; ctx.beginPath(); ctx.moveTo(p.l, y); ctx.lineTo(w - p.r, y); ctx.stroke(); }
+
+    ctx.save();
+    ctx.beginPath(); ctx.rect(p.l, p.t, pw, ph); ctx.clip();
+    for (const s of spec.series) {
+      const i0 = Math.max(0, lowerBound(s.x, t0) - 1), i1 = Math.min(s.x.length, lowerBound(s.x, t1) + 1);
+      ctx.strokeStyle = ctx.fillStyle = css(s.color);
+      if (s.dots) {
+        for (let i = i0; i < i1; i++) if (Number.isFinite(s.y[i])) { ctx.beginPath(); ctx.arc(X(s.x[i]), Y(s.y[i]), 2.5, 0, 7); ctx.fill(); }
+      } else {
+        ctx.lineWidth = s.width || 1.5;
+        strokeSeries(ctx, s.x, s.y, i0, i1, X, Y);
+      }
+    }
+    ctx.restore();
+
+    if (sel) { ctx.fillStyle = css('--accent') + '33'; const a = X(Math.min(...sel)), b = X(Math.max(...sel)); ctx.fillRect(a, p.t, b - a, ph); }
+    if (cursor !== null && cursor >= t0 && cursor <= t1) {
+      ctx.strokeStyle = css('--ink'); ctx.lineWidth = 1; const x = Math.round(X(cursor)) + 0.5;
+      ctx.beginPath(); ctx.moveTo(x, p.t); ctx.lineTo(x, p.t + ph); ctx.stroke();
+    }
+  }
+}
+
+// Draws a line, collapsing dense data to a min/max sweep per half-pixel column.
+function strokeSeries(ctx, xs, ys, i0, i1, X, Y) {
+  ctx.beginPath();
+  let pen = false, col = null, mn = 0, mx = 0;
+  const flush = () => {
+    if (col === null) return;
+    const a = Y(mn), b = Y(mx);
+    if (!pen) { ctx.moveTo(col, a); pen = true; } else ctx.lineTo(col, a);
+    if (b !== a) ctx.lineTo(col, b);
+    col = null;
+  };
+  for (let i = i0; i < i1; i++) {
+    const y = ys[i];
+    if (!Number.isFinite(y)) { flush(); pen = false; continue; }
+    const px = Math.round(X(xs[i]) * 2) / 2;
+    if (px !== col) { flush(); col = px; mn = mx = y; } else { if (y < mn) mn = y; if (y > mx) mx = y; }
+  }
+  flush();
+  ctx.stroke();
+}
+
+// ======================================================================= pass view
+let cur = null;  // { id, P, A, group }
+async function openPass(id, size) {
+  $('#passList').hidden = true;
+  $('#passView').hidden = false;
+  $('#charts').innerHTML = ''; $('#pvStats').innerHTML = ''; $('#fitOut').textContent = ''; $('#pvControls').hidden = true;
+  const bar = $('#pvProgress');
+  const key = `${link.name}/${id}`;
+  try {
+    let buf = passCache.get(key);
+    if (!buf) {
+      $('#pvTitle').textContent = `Pass #${id} — downloading…`;
+      bar.hidden = false; bar.value = 0;
+      const t0 = performance.now();
+      buf = await link.getPass(id, got => {
+        bar.value = size ? got / size : 0;
+        $('#pvTitle').textContent = `Pass #${id} — downloading ${size ? Math.round(100 * got / size) : ''}% (${(got / 1024).toFixed(0)} KB)`;
+      });
+      console.log(`pass ${id}: ${buf.byteLength} bytes in ${((performance.now() - t0) / 1000).toFixed(1)} s`);
+      passCache.set(key, buf);
+    }
+    bar.hidden = true;
+    const P = parsePass(buf);
+    $('#optTire').value = P.H.tireMm;
+    cur = { id, P };
+    $('#pvControls').hidden = false;
+    renderPass();
+  } catch (e) {
+    bar.hidden = true;
+    $('#pvTitle').textContent = `Pass #${id}`;
+    $('#charts').innerHTML = `<p class="err">${e.message}</p>`;
+  }
+}
+
+function renderPass() {
+  const { id, P } = cur, H = P.H;
+  const A = analyze(P, { lagMs: +$('#optLag').value, tireMm: +$('#optTire').value });
+  cur.A = A;
+  $('#pvTitle').textContent = `Pass #${id} · ${H.tire ? 'rubber' : 'foam'} ${A.dia} mm · ${H.cells}S · ${H.pinion}/${H.spur} × ${H.diff} = ${A.ratio.toFixed(2)}:1`;
+  const st = A.st;
+  $('#pvStats').innerHTML = [
+    tile('Top GPS', fmt(st.topGps), 'mph'),
+    tile('Top wheel', fmt(st.topWheel), 'mph from motor'),
+    tile('Peak motor', Math.round(st.peakRpm).toLocaleString(), 'rpm'),
+    tile('0–30', fmt(st.t30, 2), 's'),
+    tile('0–60', fmt(st.t60, 2), 's'),
+    tile('0–100', fmt(st.t100, 2), 's'),
+    tile('Peak accel', fmt(st.peakG, 2), 'g (50 ms avg)'),
+    tile('Peak slip', fmt(st.maxSlip, 0), '% above 15 mph'),
+    tile('Max overspeed', fmt(st.maxOver, 0), 'mph wheel over ground'),
+    tile('Time > 20% slip', fmt(st.slipTime, 2), 's'),
+    tile('Distance', fmt(st.dist * 3.28084, 0), 'ft'),
+  ].join('');
+
+  const S = P.S, host = $('#charts');
+  host.innerHTML = '';
+  const g = new ChartGroup(host);
+  g.add({ title: 'Speed', unit: ' mph', series: [
+    { name: 'Wheel', color: '--s-wheel', x: S.t, y: A.wheel },
+    { name: 'Ground (fused)', color: '--s-fused', x: S.t, y: A.fused },
+    { name: 'GPS', color: '--s-gps', x: A.gt, y: A.gps, dots: true }], include: [0, 1] });
+  g.add({ title: 'Throttle', unit: '%', digits: 0, series: [
+    { name: 'Stick', color: '--s-stick', x: S.t, y: A.stick },
+    { name: 'ESC line', color: '--s-esc', x: S.t, y: A.esc }], include: [0, 100] });
+  g.add({ title: 'Slip', unit: '%', digits: 0, series: [{ name: 'Slip', color: '--s-slip', x: S.t, y: A.slip }], include: [0, 20], clamp: [-50, 300] });
+  g.add({ title: 'Acceleration', unit: ' g', digits: 2, series: [
+    { name: 'Forward', color: '--s-fwd', x: S.t, y: A.fwd },
+    { name: 'Lateral', color: '--s-lat', x: S.t, y: A.lat }], minSpan: 0.5 });
+  g.add({ title: 'Yaw rate', unit: ' °/s', digits: 0, series: [{ name: 'Yaw', color: '--s-yaw', x: S.t, y: A.yaw }], minSpan: 20 });
+  g.setFull(S.t.length ? S.t[0] : 0, S.t.length ? S.t[S.t.length - 1] : 1);
+  cur.group = g;
+  g.draw();
+}
+
+document.querySelectorAll('[data-zoom]').forEach(b => b.onclick = () => {
+  if (!cur || !cur.group) return;
+  if (b.dataset.zoom === 'launch') cur.group.zoom(-0.3, 3); else cur.group.zoom(...cur.group.view.full);
+});
+$('#optLag').onchange = () => cur && renderPass();
+$('#optTire').onchange = () => cur && renderPass();
+$('#btnFit').onclick = () => {
+  if (!cur) return;
+  const f = fitTire(cur.P, cur.A);
+  $('#fitOut').textContent = f.n
+    ? `Effective rolling diameter ≈ ${f.dia.toFixed(1)} mm from ${f.n} GPS points` + (f.nFast ? `; above 60 mph ≈ ${f.diaFast.toFixed(1)} mm (${f.nFast} points). The difference is tire growth.` : '.')
+    : 'Not enough steady (low-acceleration) GPS points above 15 mph in this pass.';
+};
+$('#btnCsv').onclick = () => {
+  if (!cur) return;
+  const { P, A, id } = cur, S = P.S;
+  const gpsAt = new Map();
+  for (let j = 0; j < A.gt.length; j++) gpsAt.set(Math.min(S.t.length - 1, lowerBound(S.t, A.gt[j])), A.gps[j]);
+  const rows = ['t_s,stick_us,escline_us,aux_us,motor_rpm,hall_edges,wheel_mph,ground_mph,gps_mph,slip_pct,fwd_g,lat_g,yaw_dps'];
+  for (let i = 0; i < S.t.length; i++) {
+    const gv = gpsAt.get(i);
+    rows.push([S.t[i].toFixed(4), S.stick[i], S.esc[i], S.aux[i], S.rpm[i], S.edges[i], A.wheel[i].toFixed(2), A.fused[i].toFixed(2),
+      gv === undefined || !Number.isFinite(gv) ? '' : gv.toFixed(2), Number.isFinite(A.slip[i]) ? A.slip[i].toFixed(1) : '',
+      A.fwd[i].toFixed(3), A.lat[i].toFixed(3), A.yaw[i].toFixed(1)].join(','));
+  }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([rows.join('\n')], { type: 'text/csv' }));
+  a.download = `pass_${id}.csv`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+window.addEventListener('resize', () => cur && cur.group && cur.group.draw());
+
+// ======================================================================= settings
+const AXES = [[1, '+X'], [-1, '−X'], [2, '+Y'], [-2, '−Y'], [3, '+Z'], [-3, '−Z']];
+for (const name of ['fwd_axis', 'left_axis']) $(`[name=${name}]`).innerHTML = AXES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+const form = $('#setForm');
+function fillForm(s) { for (const [k, v] of Object.entries(s)) if (form.elements[k]) form.elements[k].value = v; updateSpeedTable(); }
+async function loadSettings() {
+  $('#saveMsg').textContent = '';
+  if (settingsCache) fillForm(settingsCache);
+  try { settingsCache = await link.settings(); fillForm(settingsCache); }
+  catch (e) { $('#saveMsg').textContent = `Could not load settings (${e.message})`; }
+  $('#aboutOut').textContent = infoCache ? `${infoCache.name} · firmware ${infoCache.fw}` : '';
+}
+function updateSpeedTable() {
+  const f = form.elements, ratio = +f.spur.value / +f.pinion.value * +f.diff.value;
+  $('#ratioOut').textContent = `Overall ratio ${ratio.toFixed(3)}:1 (${f.spur.value}/${f.pinion.value} × ${f.diff.value})`;
+  const mph = (cells, dia) => +f.kv.value * cells * 4.2 / ratio * Math.PI * dia / 1000 / 60 * MPH;
+  $('#speedTable').innerHTML = '<tr><th>Pack</th><th>Motor rpm</th><th>Foam</th><th>Rubber</th></tr>' + [6, 7, 8].map(c =>
+    `<tr><td>${c}S</td><td>${Math.round(+f.kv.value * c * 4.2).toLocaleString()}</td><td>${mph(c, +f.foam_mm.value).toFixed(0)} mph</td><td>${mph(c, +f.rubber_mm.value).toFixed(0)} mph</td></tr>`).join('');
+}
+form.addEventListener('input', updateSpeedTable);
+$('#btnSave').onclick = async () => {
+  $('#saveMsg').textContent = 'Saving…';
+  try {
+    settingsCache = await link.saveSettings(Object.fromEntries(new FormData(form)));
+    fillForm(settingsCache);
+    $('#saveMsg').textContent = 'Saved.';
+  } catch (e) { $('#saveMsg').textContent = `Save failed (${e.message})`; }
+};
+$('#btnRestart').onclick = async () => {
+  if (!confirm('Restart the box now? Bluetooth will disconnect.')) return;
+  try { await link.restart(); } catch (e) { /* the box drops the link as it restarts */ }
+};
+</script>
+</body>
+</html>
