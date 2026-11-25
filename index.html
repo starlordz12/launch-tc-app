@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Launch TC</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#171b21">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Launch TC">
 <style>
 :root {
   --bg: #f6f7f9; --panel: #ffffff; --ink: #14171c; --muted: #5d6573; --line: #dde1e7; --grid: #eceff3;
@@ -20,6 +27,11 @@
   }
 }
 * { box-sizing: border-box; }
+.pinform { display: grid; gap: 10px; max-width: 280px; margin: 16px auto; }
+.pinform input[type=password], .pinform input[type=text] { font-size: 26px; letter-spacing: 8px; text-align: center;
+  padding: 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--ink); }
+.pinform .check { font-size: 14px; color: var(--muted); display: flex; gap: 8px; align-items: center; justify-content: center; }
+.pinform .check input { width: auto; margin: 0; }
 html, body { margin: 0; background: var(--bg); color: var(--ink);
   font: 15px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 header { position: sticky; top: 0; z-index: 5; background: var(--panel); border-bottom: 1px solid var(--line);
@@ -81,6 +93,7 @@ progress { width: 100%; height: 8px; }
   <nav id="tabs" hidden>
     <button data-tab="live" class="on">Live</button>
     <button data-tab="passes">Passes</button>
+    <button data-tab="launch">Launch</button>
     <button data-tab="settings">Settings</button>
   </nav>
 </header>
@@ -94,6 +107,24 @@ progress { width: 100%; height: 8px; }
         <button class="btn big" id="btnDemo">Try demo data</button>
       </div>
       <p class="note" id="startNote"></p>
+    </div>
+  </section>
+
+  <section id="pair" hidden>
+    <div class="hero">
+      <h2 id="pairTitle"></h2>
+      <p class="muted" id="pairText"></p>
+      <form class="pinform" id="pairForm" autocomplete="off">
+        <input id="pin1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="••••••">
+        <input id="pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="again">
+        <label class="check"><input type="checkbox" id="pinRemember" checked> Remember on this phone</label>
+        <div class="row" style="justify-content:center">
+          <button class="btn primary big" type="submit" id="btnPair"></button>
+          <button class="btn big" type="button" id="btnLookOnly">Look only</button>
+        </div>
+      </form>
+      <p class="note" id="pairNote"></p>
+      <p class="note muted" id="pairHelp">Forgot the PIN? With the box powered, hold the <b>BOOT</b> button on the board for 5 seconds, then connect again and set a new one.</p>
     </div>
   </section>
 
@@ -133,6 +164,23 @@ progress { width: 100%; height: 8px; }
     </div>
   </section>
 
+  <section id="launch" hidden>
+    <h2>Launch and traction control</h2>
+    <p class="note" id="modeOut"></p>
+    <form class="settings" id="launchForm">
+      <label>Target slip %<input name="tc_slip_pct" type="number" min="2" max="60"></label>
+      <label>Launch ramp ms (0 = none, the slip control handles the launch)<input name="ramp_ms" type="number" min="0" max="3000" step="50"></label>
+      <label>ESC frame rate Hz (50 until the bench test shows what the ESC takes)<input name="out_hz" type="number" min="50" max="333"></label>
+      <label>Anti-flip guard (nose lifts)<select name="flip_guard"><option value="0">Off</option><option value="1">Throttle off</option><option value="2">Throttle off and brake</option></select></label>
+      <label>Yaw guard (eases torque if the car steps out at speed)<select name="yaw_guard"><option value="0">Off</option><option value="1">On</option></select></label>
+    </form>
+    <div class="row">
+      <button class="btn primary" id="btnLaunchSave">Save</button>
+      <span id="launchMsg" class="muted"></span>
+    </div>
+    <p class="note">These only act in inline mode. Full trigger at the go light: the board sets the torque, and once nothing slips the ESC gets your own throttle. Changes apply at once; no restart needed.</p>
+  </section>
+
   <section id="settings" hidden>
     <h2>Car</h2>
     <form class="settings" id="setForm">
@@ -157,6 +205,17 @@ progress { width: 100%; height: 8px; }
       <button class="btn" id="btnRestart">Restart box</button>
       <span id="saveMsg" class="muted"></span>
     </div>
+    <h2>Box PIN</h2>
+    <p class="note">Anyone can look at live data and passes; changing settings, the Launch tab, deleting passes and restarting need the box's 6-digit PIN. This phone logs in by itself once it has it.</p>
+    <form class="settings" id="pinChangeForm" autocomplete="off">
+      <label>New PIN<input id="newPin1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6"></label>
+      <label>New PIN again<input id="newPin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="6"></label>
+    </form>
+    <div class="row">
+      <button class="btn" id="btnPinChange">Change PIN</button>
+      <button class="btn" id="btnPinForget">Forget it on this phone</button>
+      <span id="pinMsg" class="muted"></span>
+    </div>
     <h2>Theoretical top speed (no load, full charge, no tire growth)</h2>
     <p class="note" id="ratioOut"></p>
     <table id="speedTable"></table>
@@ -175,7 +234,9 @@ const fmt = (v, d = 1) => Number.isFinite(v) ? v.toFixed(d) : '—';
 const BLE_UUID = n => `4c54430${n}-8f2a-4e8b-a3d4-1b5c9e7f2a60`;
 const SVC_UUID = BLE_UUID(1);
 const DEFAULT_SETTINGS = { pinion: 24, spur: 42, diff: 2.8, foam_mm: 104, rubber_mm: 97, tire: 0, cells: 6, poles: 4,
-  kv: 2400, neutral_us: 1500, full_us: 2000, trigger_pct: 10, fwd_axis: 1, left_axis: 2, gps_hz: 10 };
+  kv: 2400, neutral_us: 1500, full_us: 2000, trigger_pct: 10, fwd_axis: 1, left_axis: 2, gps_hz: 10,
+  // fw 0.3.0 inline mode; not on the settings form, so the app never changes them
+  mode: 0, tc_slip_pct: 10, ramp_ms: 0, out_hz: 50, flip_guard: 1, yaw_guard: 1 };
 
 const CRC_TABLE = (() => {
   const t = new Uint32Array(256);
@@ -355,17 +416,87 @@ async function startLink(l) {
     l.onLive = renderLive;
     l.onDisconnect = () => { if (link === l) { link = null; showStart('Disconnected from the box.'); } };
     infoCache = await l.info();
-    settingsCache = await l.settings();
-    setConn(l.name, true);
-    $('#tabs').hidden = false;
+    if (infoCache.pin_set === true && !infoCache.unlocked) {
+      const saved = savedPin(infoCache.name);
+      if (saved) {
+        try { await unlock(l, saved); infoCache.unlocked = true; }
+        catch (e) { if (/wrong PIN/.test(e.message)) forgetPin(infoCache.name); }
+      }
+    }
     $('#btnDisconnect').hidden = false;
-    showTab('live');
+    if (infoCache.pin_set === false) return showPair('create');
+    if (infoCache.pin_set === true && !infoCache.unlocked) return showPair('enter');
+    await enterApp();
   } catch (e) {
     link = null;
     setConn('Not connected');
     if (e.name !== 'NotFoundError') $('#startNote').innerHTML = `<span class="err">${e.message}</span>`;  // NotFoundError = chooser cancelled
   }
 }
+
+async function enterApp() {
+  settingsCache = await link.settings();
+  const locked = infoCache.pin_set === true && !infoCache.unlocked;
+  setConn(link.name + (locked ? ' · look only' : ''), true);
+  $('#tabs').hidden = false;
+  showTab('live');
+}
+
+// ======================================================================= PIN (D22)
+// The box never sees the PIN after it is set: it sends a one-time challenge and this page answers with
+// HMAC-SHA-256(PIN, challenge), computed in the browser. The PIN is kept in this phone's storage per box.
+const pinKey = name => `ltc-pin:${name}`;
+const savedPin = name => { try { return localStorage.getItem(pinKey(name)); } catch (e) { return null; } };
+const keepPin = (name, pin) => { try { localStorage.setItem(pinKey(name), pin); } catch (e) { /* private mode */ } };
+const forgetPin = name => { try { localStorage.removeItem(pinKey(name)); } catch (e) { /* ignore */ } };
+const sixDigits = v => /^[0-9]{6}$/.test(v);
+async function hmacHex(pin, msg) {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey('raw', enc.encode(pin), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
+  const sig = new Uint8Array(await crypto.subtle.sign('HMAC', key, enc.encode(msg)));
+  return Array.from(sig, b => b.toString(16).padStart(2, '0')).join('');
+}
+async function unlock(l, pin) {
+  const { nonce } = await l.request('hello');
+  await l.request('auth ' + await hmacHex(pin, nonce));
+}
+let pairMode = 'enter';
+function showPair(mode) {
+  pairMode = mode;
+  setConn(link.name, true);
+  $('#tabs').hidden = true;
+  document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== 'pair');
+  tab = 'pair';
+  const create = mode === 'create';
+  $('#pairTitle').textContent = create ? 'Set a PIN for this box' : 'Enter this box’s PIN';
+  $('#pairText').textContent = create
+    ? `${link.name} has no PIN yet. Pick 6 digits: from now on, changing its settings or anything that touches the throttle needs it. This phone remembers it.`
+    : `${link.name} is locked. Enter its 6-digit PIN to change settings; or just look.`;
+  $('#pin2').hidden = !create;
+  $('#btnPair').textContent = create ? 'Set PIN' : 'Unlock';
+  $('#btnLookOnly').textContent = create ? 'Not now' : 'Look only';
+  $('#pairHelp').hidden = create;
+  $('#pairNote').textContent = '';
+  $('#pin1').value = $('#pin2').value = '';
+  $('#pin1').focus();
+}
+$('#pairForm').onsubmit = async ev => {
+  ev.preventDefault();
+  const pin = $('#pin1').value.trim();
+  const note = $('#pairNote');
+  if (!sixDigits(pin)) { note.innerHTML = '<span class="err">The PIN is 6 digits.</span>'; return; }
+  if (pairMode === 'create' && pin !== $('#pin2').value.trim()) { note.innerHTML = '<span class="err">The two PINs don’t match.</span>'; return; }
+  note.textContent = pairMode === 'create' ? 'Setting…' : 'Checking…';
+  try {
+    if (pairMode === 'create') await link.request('pin ' + pin);
+    else await unlock(link, pin);
+    if ($('#pinRemember').checked) keepPin(infoCache.name, pin);
+    infoCache.pin_set = true;
+    infoCache.unlocked = true;
+    await enterApp();
+  } catch (e) { note.innerHTML = `<span class="err">${e.message}</span>`; }
+};
+$('#btnLookOnly').onclick = () => enterApp().catch(e => { $('#pairNote').innerHTML = `<span class="err">${e.message}</span>`; });
 
 function showStart(msg) {
   setConn('Not connected');
@@ -393,6 +524,7 @@ function showTab(name) {
   document.querySelectorAll('main > section').forEach(s => s.hidden = s.id !== name);
   if (name === 'passes') loadPasses();
   if (name === 'settings') loadSettings();
+  if (name === 'launch') loadLaunch();
 }
 
 // ======================================================================= live
@@ -929,6 +1061,44 @@ $('#btnSave').onclick = async () => {
     fillForm(settingsCache);
     $('#saveMsg').textContent = 'Saved.';
   } catch (e) { $('#saveMsg').textContent = `Save failed (${e.message})`; }
+};
+// ======================================================================= launch
+const launchForm = $('#launchForm');
+function fillLaunch(s) {
+  for (const [k, v] of Object.entries(s)) if (launchForm.elements[k]) launchForm.elements[k].value = v;
+  $('#modeOut').textContent = s.mode === 1
+    ? 'Mode: inline. The board drives the ESC.'
+    : 'Mode: logger only. The board never touches the throttle; the settings below take effect once inline mode is on (the "set mode=1" command, then a power cycle; the app never switches modes).';
+}
+async function loadLaunch() {
+  $('#launchMsg').textContent = '';
+  if (settingsCache) fillLaunch(settingsCache);
+  try { settingsCache = await link.settings(); fillLaunch(settingsCache); }
+  catch (e) { $('#launchMsg').textContent = `Could not load settings (${e.message})`; }
+}
+$('#btnLaunchSave').onclick = async () => {
+  $('#launchMsg').textContent = 'Saving…';
+  try {
+    settingsCache = await link.saveSettings(Object.fromEntries(new FormData(launchForm)));
+    fillLaunch(settingsCache);
+    $('#launchMsg').textContent = 'Saved.';
+  } catch (e) { $('#launchMsg').textContent = `Save failed (${e.message})`; }
+};
+$('#btnPinChange').onclick = async () => {
+  const a = $('#newPin1').value.trim(), b = $('#newPin2').value.trim(), msg = $('#pinMsg');
+  if (!link || !link.request) { msg.textContent = 'Not in demo mode.'; return; }
+  if (!sixDigits(a)) { msg.textContent = 'The PIN is 6 digits.'; return; }
+  if (a !== b) { msg.textContent = 'The two PINs don’t match.'; return; }
+  try {
+    await link.request('pin ' + a);
+    keepPin(infoCache.name, a);
+    $('#newPin1').value = $('#newPin2').value = '';
+    msg.textContent = 'PIN changed.';
+  } catch (e) { msg.textContent = `Not changed (${e.message})`; }
+};
+$('#btnPinForget').onclick = () => {
+  if (infoCache) forgetPin(infoCache.name);
+  $('#pinMsg').textContent = 'This phone will ask for the PIN next time.';
 };
 $('#btnRestart').onclick = async () => {
   if (!confirm('Restart the box now? Bluetooth will disconnect.')) return;
